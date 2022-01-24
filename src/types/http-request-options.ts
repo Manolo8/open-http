@@ -1,3 +1,5 @@
 import { AxiosRequestConfig } from 'axios';
 
-export type HttpRequestOptions = Pick<AxiosRequestConfig, 'onDownloadProgress' | 'onUploadProgress' | 'cancelToken'>;
+export type HttpRequestOptions = Partial<
+    Pick<AxiosRequestConfig, 'onDownloadProgress' | 'onUploadProgress' | 'cancelToken'>
+>;

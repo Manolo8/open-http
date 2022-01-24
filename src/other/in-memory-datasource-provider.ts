@@ -50,6 +50,7 @@ export class InMemoryDatasourceProvider<TInput extends DatasourceInput<TOutput>,
         const sorter = sort[0];
 
         result.sort((a, b) => {
+
             const valueA = a[sorter[0]] as any;
             const valueB = b[sorter[0]] as any;
 

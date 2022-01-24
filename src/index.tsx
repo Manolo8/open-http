@@ -5,12 +5,14 @@ export { Pagination } from './types/pagination';
 export { RequestSourceProvider } from './types/request-source-provider';
 export { Sort } from './types/sort';
 export { SortDirection } from './types/sort-direction';
+export { HttpRequestOptions } from './types/http-request-options';
 
 export { Datasource } from './other/datasource';
 export { Http } from './other/http';
 export { InMemoryDatasourceProvider } from './other/in-memory-datasource-provider';
 export { RequestSource } from './other/request-source';
+export { RequestBuilder } from './types/request-builder';
 
 export { useRequest } from './hooks/use-request';
-export { useDatasource } from './hooks/use-datasource';
+export { useRawDatasource } from './hooks/use-raw-datasource';
 export { useInMemoryDatasourceProvider } from './hooks/use-in-memory-datasource-provider';
