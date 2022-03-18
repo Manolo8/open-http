@@ -1,71 +1,79 @@
 import axios, { Axios, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+import { HttpConfig } from '../types/http-config';
 import { HttpDataType } from '../types/http-data-type';
 import { HttpRequestOptions } from '../types/http-request-options';
 import { RequestBuilder } from '../types/request-builder';
-import { HttpConfig } from '../types/http-config';
 
-export class Http {
+export class Http<Response, SuccessData, ErrorData> {
     private readonly _axios: Axios;
-    private readonly _config?: HttpConfig;
+    private readonly _config: HttpConfig<Response, SuccessData, ErrorData>;
 
-    constructor(config?: HttpConfig) {
+    constructor(config: HttpConfig<Response, SuccessData, ErrorData>) {
         this._axios = new Axios(config?.axiosConfig);
         this._config = config;
-
-        this.handleError = this.handleError.bind(this);
-        this.handleSuccess = this.handleSuccess.bind(this);
     }
 
     public get<TInput, TOutput>(url: string): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this._axios
-                .get<TOutput>(url + Http.compileParameters(input), options ?? {})
-                .then(this.handleSuccess)
-                .catch((error) => this.handleError(input, error));
+            this.processPromise(input, this._axios.get<TOutput>(url + Http.compileParameters(input), options ?? {}));
     }
 
     public post<TInput, TOutput>(url: string, dataType?: HttpDataType): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this._axios
-                .post<TOutput>(
+            this.processPromise(
+                input,
+                this._axios.post<TOutput>(
                     Http.buildUrl(url, input, dataType),
                     this.buildInput(input, dataType),
                     Http.buildOptions(options, dataType)
                 )
-                .then(this.handleSuccess)
-                .catch((error) => this.handleError(input, error));
+            );
     }
 
     public put<TInput, TOutput>(url: string, dataType?: HttpDataType): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this._axios
-                .put<TOutput>(
+            this.processPromise(
+                input,
+                this._axios.put<TOutput>(
                     Http.buildUrl(url, input, dataType),
                     this.buildInput(input, dataType),
                     Http.buildOptions(options, dataType)
                 )
-                .then(this.handleSuccess)
-                .catch((error) => this.handleError(input, error));
+            );
     }
 
     public patch<TInput, TOutput>(url: string, dataType?: HttpDataType): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this._axios
-                .patch<TOutput>(
+            this.processPromise(
+                input,
+                this._axios.patch<TOutput>(
                     Http.buildUrl(url, input, dataType),
                     this.buildInput(input, dataType),
                     Http.buildOptions(options, dataType)
                 )
-                .then(this.handleSuccess)
-                .catch((error) => this.handleError(input, error));
+            );
     }
 
     public delete<TInput, TOutput>(url: string): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this._axios
-                .delete<TOutput>(url + Http.compileParameters(input), options)
-                .then(this.handleSuccess)
-                .catch((error) => this.handleError(input, error));
+            this.processPromise(input, this._axios.delete<TOutput>(url + Http.compileParameters(input), options));
+    }
+
+    public async processPromise<TInput, TOutput>(input: TInput, promise: Promise<AxiosResponse>): Promise<TOutput> {
+        try {
+            const axiosResponse = await promise;
+
+            const data = await this._config.responseHandler(axiosResponse);
+
+            return this._config.successHandler(data);
+        } catch (error) {
+            if (axios.isCancel(error)) throw new Error('cancelled');
+
+            this._config.errorHandler(input, error as any);
+
+            throw error;
+        }
     }
 
     private buildInput(input: any, dataType?: HttpDataType) {
@@ -96,24 +104,6 @@ export class Http {
             .join('&');
 
         return compiled ? '?' + compiled : '';
-    }
-
-    private handleSuccess(response: AxiosResponse) {
-        const handler = this._config?.successHandler;
-
-        if (handler) return handler(response);
-
-        return response.data;
-    }
-
-    private handleError(input: any, error: any) {
-        if (axios.isCancel(error)) return Promise.reject('cancelled');
-
-        const handler = this._config?.errorHandler;
-
-        handler?.(input, error);
-
-        throw error;
     }
 
     private buildFormData(input: any) {

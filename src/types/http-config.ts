@@ -1,7 +1,8 @@
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 
-export interface HttpConfig {
+export interface HttpConfig<Response, SuccessData, ErrorData> {
     axiosConfig?: AxiosRequestConfig;
-    errorHandler?: (input: any, error: any) => void;
-    successHandler?: (response: AxiosResponse) => any;
+    responseHandler: (response: AxiosResponse<Response>) => Promise<SuccessData>;
+    errorHandler: (input: any, data: ErrorData) => void;
+    successHandler: (data: SuccessData) => any;
 }
