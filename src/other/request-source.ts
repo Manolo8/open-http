@@ -40,29 +40,31 @@ export class RequestSource<TInput, TOutput> {
         this._input.next(value);
     }
 
-    public setLock(value: boolean) {
-        this._lock = value;
+    public setLock(lock: boolean) {
+        this._lock = lock;
 
-        if (value) {
-            clearTimeout(this._timeoutId);
-            this._loading.next(false);
+        if (!this._lock) return;
 
-            if (this._clearOnLock) {
-                this._output.next(undefined);
-            }
-        } else this.refresh();
+        clearTimeout(this._timeoutId);
+
+        if (!this._clearOnLock) return;
+
+        this.clear();
     }
 
-    public setClearOnLock(value: boolean) {
-        this._clearOnLock = value;
+    public setClearOnLock(clearOnLock: boolean) {
+        this._clearOnLock = clearOnLock;
 
-        if (this._clearOnLock && this._lock) {
-            this._output.next(undefined);
-        }
+        if (!(this._clearOnLock && this._lock)) return;
+
+        this.clear();
     }
 
     public refresh(): void {
+        if (this._lock) return;
+
         clearTimeout(this._timeoutId);
+
         this._loading.next(true);
 
         this._timeoutId = setTimeout(this.realRefresh, 250);
@@ -75,5 +77,10 @@ export class RequestSource<TInput, TOutput> {
                 this._loading.next(false);
             })
             .catch(() => this._loading.next(false));
+    }
+
+    private clear() {
+        this._output.next(undefined);
+        this._loading.next(false);
     }
 }
