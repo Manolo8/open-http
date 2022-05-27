@@ -1,6 +1,6 @@
-import { Dispatch, ISubscriber } from 'open-observable';
-import { Observable } from 'open-observable';
-import { RequestSourceProvider } from '../types/request-source-provider';
+import {Dispatch, ISubscriber} from 'open-observable';
+import {Observable} from 'open-observable';
+import {RequestSourceProvider} from '../types/request-source-provider';
 
 export class RequestSource<TInput, TOutput> {
     private readonly _provider: RequestSourceProvider<TInput, TOutput>;
@@ -70,13 +70,14 @@ export class RequestSource<TInput, TOutput> {
         this._timeoutId = setTimeout(this.realRefresh, 250);
     }
 
-    private realRefresh() {
-        Promise.resolve(this._provider(this._input.current()))
-            .then((result) => {
-                this._output.next(result);
-                this._loading.next(false);
-            })
-            .catch(() => this._loading.next(false));
+    private async realRefresh() {
+        try {
+            const result = await (this._provider(this._input.current()))
+
+            this._output.next(result);
+        } finally {
+            this._loading.next(false);
+        }
     }
 
     private clear() {

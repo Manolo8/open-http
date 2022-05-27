@@ -1,9 +1,9 @@
-import { Dispatch, ISubscriber, Observable } from 'open-observable';
-import { Pagination } from '../types/pagination';
-import { DatasourceInput } from '../types/datasource-input';
-import { DatasourceProvider } from '../types/datasource-provider';
-import { DatasourceFilter } from '../types/datasource-filter';
-import { Sort } from '../types/sort';
+import {Dispatch, ISubscriber, Observable} from 'open-observable';
+import {Pagination} from '../types/pagination';
+import {DatasourceInput} from '../types/datasource-input';
+import {DatasourceProvider} from '../types/datasource-provider';
+import {DatasourceFilter} from '../types/datasource-filter';
+import {Sort} from '../types/sort';
 
 export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
     private readonly _provider: DatasourceProvider<TInput, TOutput>;
@@ -33,7 +33,7 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
         this._total = new Observable<number>(0);
         this._raw = new Observable<TOutput | undefined>(undefined);
         this._loading = new Observable<boolean>(false);
-        this._pagination = new Observable<Pagination>({ page: 1, size: 10 });
+        this._pagination = new Observable<Pagination>({page: 1, size: 10});
         this._fixedFilter = new Observable<DatasourceFilter<TInput, TOutput>>({});
         this._filter = new Observable<DatasourceFilter<TInput, TOutput>>({});
         this._sort = new Observable<Sort<TOutput>>([]);
@@ -69,7 +69,7 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
 
         if (this._loading.current()) return;
 
-        const { size, page } = this._pagination.current();
+        const {size, page} = this._pagination.current();
         const total = this._total.current();
 
         if (size * page >= total) return;
@@ -83,7 +83,7 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
     }
 
     public refreshDone(): Promise<void> {
-        return new Promise((resolve, reject) => this._resolve.push({ resolve, reject }));
+        return new Promise((resolve, reject) => this._resolve.push({resolve, reject}));
     }
 
     public buildInput(): TInput {
@@ -96,41 +96,43 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
 
         const sort = this._sort.current();
 
-        return { ...filter, ...pagination, sort } as TInput;
+        return {...filter, ...pagination, sort} as TInput;
     }
 
-    private realRefresh() {
+    private async realRefresh() {
         const appending = this._appending;
 
-        if (appending) this._pagination.next((old) => ({ ...old, page: old.page + 1 }));
+        if (appending) this._pagination.next((old) => ({...old, page: old.page + 1}));
 
         const input = this.buildInput();
 
         const copy = this._resolve;
         this._resolve = [];
 
-        Promise.resolve(this._provider(input))
-            .then((result) => {
-                this._raw.next(result);
-                this._items.next((old) => (appending ? [...old, ...result.items] : result.items));
-                this._total.next(result.total);
-                this._loading.next(false);
+        try {
+            const result = await this._provider(input);
 
-                copy.forEach((x) => x.resolve());
-            })
-            .catch(() => {
-                this._loading.next(false);
-                copy.forEach((x) => x.reject());
-            });
+            this._raw.next(result);
+            this._items.next((old) => (appending ? [...old, ...result.items] : result.items));
+            this._total.next(result.total);
+            this._loading.next(false);
+
+            copy.forEach((x) => x.resolve());
+
+        } catch (exception) {
+            copy.forEach((x) => x.reject());
+        } finally {
+            this._loading.next(false);
+        }
     }
 
     public setPage(page: number) {
-        this._pagination.next((old) => ({ ...old, page }));
+        this._pagination.next((old) => ({...old, page}));
         this.refresh();
     }
 
     public setSize(size: number) {
-        this._pagination.next((old) => ({ ...old, size }));
+        this._pagination.next((old) => ({...old, size}));
         this.refresh();
     }
 

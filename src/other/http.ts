@@ -1,9 +1,9 @@
-import axios, { Axios, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, {Axios, AxiosRequestConfig, AxiosResponse} from 'axios';
 
-import { HttpConfig } from '../types/http-config';
-import { HttpDataType } from '../types/http-data-type';
-import { HttpRequestOptions } from '../types/http-request-options';
-import { RequestBuilder } from '../types/request-builder';
+import {HttpConfig} from '../types/http-config';
+import {HttpDataType} from '../types/http-data-type';
+import {HttpRequestOptions} from '../types/http-request-options';
+import {RequestBuilder} from '../types/request-builder';
 
 export class Http<Response, SuccessData, ErrorData> {
     private readonly _axios: Axios;
@@ -58,6 +58,11 @@ export class Http<Response, SuccessData, ErrorData> {
     public delete<TInput, TOutput>(url: string): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
             this.processPromise(input, this._axios.delete<TOutput>(url + Http.compileParameters(input), options));
+    }
+
+    public options<TInput, TOutput>(url: string): RequestBuilder<TInput, TOutput> {
+        return (input: TInput, options?: HttpRequestOptions) =>
+            this.processPromise(input, this._axios.options<TOutput>(url + Http.compileParameters(input), options));
     }
 
     public async processPromise<TInput, TOutput>(input: TInput, promise: Promise<AxiosResponse>): Promise<TOutput> {
@@ -121,6 +126,7 @@ export class Http<Response, SuccessData, ErrorData> {
             ...options,
             headers: {
                 'Content-Type': dataType === 'FORMDATA' ? 'multipart/form-data' : 'application/json',
+                ...options?.headers
             },
         };
     }
