@@ -1,20 +1,20 @@
-import { InMemoryDatasourceProvider } from '../in-memory-datasource-provider';
+import {InMemoryDatasourceProvider} from '../in-memory-datasource-provider';
 
 const source = new InMemoryDatasourceProvider([
-    { id: 1, userName: 'Elfo' },
-    { id: 2, userName: 'Fernando' },
-    { id: 3, userName: 'Chato' },
-    { id: 4, userName: 'Gisele' },
-    { id: 5, userName: 'Amanda' },
-    { id: 6, userName: 'Beatriz' },
-    { id: 7, userName: 'Daniela' },
-    { id: 8, userName: 'Helena' },
+    {id: 1, userName: 'Fernando', lastName: 'Abacate'},
+    {id: 2, userName: 'Elfo', lastName: 'Abacate'},
+    {id: 3, userName: 'Chato', lastName: 'Maça'},
+    {id: 4, userName: 'Gisele', lastName: 'Schlemper'},
+    {id: 5, userName: 'Amanda', lastName: 'Soares'},
+    {id: 6, userName: 'Beatriz', lastName: 'Maça'},
+    {id: 7, userName: 'Daniela', lastName: 'Schlemper'},
+    {id: 8, userName: 'Helena', lastName: 'Soares'},
 ]);
 
 const provider = source.toProvider();
 
 it('should sort 4 items ASC', async () => {
-    const result = await Promise.resolve(provider({ page: 1, size: 4, sort: [['userName', 'ASC']] }));
+    const result = await provider({page: 1, size: 4, sort: [['userName', 'ASC']]});
 
     expect(result.items.length).toBe(4);
 
@@ -24,8 +24,21 @@ it('should sort 4 items ASC', async () => {
     expect(result.items[3].userName).toBe('Daniela');
 });
 
+it('should sort 4 items ASC by lastName then ASC by name', async () => {
+    const result = await provider({page: 1, size: 4, sort: [['lastName', 'ASC'], ['userName', 'ASC']]});
+
+    expect(result.items.length).toBe(4);
+
+    expect(result.items[0].lastName).toBe('Abacate');
+    expect(result.items[1].lastName).toBe('Abacate');
+    expect(result.items[2].lastName).toBe('Maça');
+    expect(result.items[3].lastName).toBe('Maça');
+    expect(result.items[0].userName).toBe('Elfo');
+    expect(result.items[1].userName).toBe('Fernando');
+});
+
 it('should sort 4 items DESC', async () => {
-    const result = await Promise.resolve(provider({ page: 1, size: 4, sort: [['userName', 'DESC']] }));
+    const result = await provider({page: 1, size: 4, sort: [['userName', 'DESC']]});
 
     expect(result.items.length).toBe(4);
 
@@ -36,7 +49,7 @@ it('should sort 4 items DESC', async () => {
 });
 
 it('should bring 4 items', async () => {
-    const result = await Promise.resolve(provider({ page: 1, size: 4, sort: [] }));
+    const result = await provider({page: 1, size: 4, sort: []});
 
     expect(result.items.length).toBe(4);
     expect(result.total).toBe(8);
@@ -47,21 +60,21 @@ it('should bring 4 items', async () => {
 });
 
 it('should bring correclty items in page 2', async () => {
-    const result = await Promise.resolve(provider({ page: 2, size: 4, sort: [] }));
+    const result = await provider({page: 2, size: 4, sort: []});
 
     expect(result.items.length).toBe(4);
     expect(result.items[0].id).toBe(5);
 });
 
 it('should bring empty', async () => {
-    const result = await Promise.resolve(provider({ page: 3, size: 4, sort: [] }));
+    const result = await provider({page: 3, size: 4, sort: []});
 
     expect(result.items.length).toBe(0);
     expect(result.items[0]).toBe(undefined);
 });
 
 it('should bring 1', async () => {
-    const result = await Promise.resolve(provider({ page: 2, size: 7, sort: [] }));
+    const result = await provider({page: 2, size: 7, sort: []});
 
     expect(result.items.length).toBe(1);
     expect(result.items[0].id).toBe(8);

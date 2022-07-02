@@ -1,7 +1,7 @@
-import { ISubscriber } from 'open-observable';
-import { DatasourceInput } from '../types/datasource-input';
-import { DatasourceOutput } from '../types/datasource-output';
-import { DatasourceProvider } from '../types/datasource-provider';
+import {ISubscriber} from 'open-observable';
+import {DatasourceInput} from '../types/datasource-input';
+import {DatasourceOutput} from '../types/datasource-output';
+import {DatasourceProvider} from '../types/datasource-provider';
 
 type Source<TOutput> = TOutput[] | ISubscriber<TOutput[]>;
 
@@ -32,7 +32,7 @@ export class InMemoryDatasourceProvider<TInput extends DatasourceInput<TOutput>,
         items = this.applySort(input, items);
         items = this.applyPagination(input, items);
 
-        return { total, items };
+        return {total, items};
     }
 
     private applyFilter(input: TInput, value: TOutput[]): TOutput[] {
@@ -47,28 +47,32 @@ export class InMemoryDatasourceProvider<TInput extends DatasourceInput<TOutput>,
         const result = [...value];
 
         //todo all sorts kind
-        const sorter = sort[0];
-
         result.sort((a, b) => {
-            const valueA = a[sorter[0]] as any;
-            const valueB = b[sorter[0]] as any;
 
-            const type = typeof valueA;
+            for (const sorter of sort) {
+                const valueA = a[sorter[0]];
+                const valueB = b[sorter[0]];
 
-            if (typeof valueB !== type) return 0;
+                let value = 0;
 
-            switch (type) {
-                case 'string':
-                    return (valueA as string).localeCompare(valueB as string);
-                case 'number':
-                case 'boolean':
-                    return (valueA as number) - (valueB as number);
-                default:
-                    return 0;
+                if (typeof valueA === 'string' && typeof valueB === 'string') {
+                    value = valueA.localeCompare(valueB);
+                } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+                    value = valueA - valueB;
+
+                    if (value > 0) value = 1;
+                    else if (value < 0) value = -1;
+                } else if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
+                    value = (+valueA) - (+valueB);
+                }
+
+                if (value === 0) continue;
+
+                return sorter[1] === 'ASC' ? value : value === 1 ? -1 : 1;
             }
-        });
 
-        if (sorter[1] === 'DESC') result.reverse();
+            return 0;
+        });
 
         return result;
     }

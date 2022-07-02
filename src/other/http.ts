@@ -103,8 +103,10 @@ export class Http<Response, SuccessData, ErrorData> {
         const entries = Object.entries(parameters);
 
         const compiled = entries
+            .filter(([, value]) => value !== null && value !== undefined)
             .map(([key, value]) =>
-                Array.isArray(value) ? value.map((x, i) => `${key}[${i}]=${x}`).join('&') : `${key}=${value}`
+                Array.isArray(value) ? value.filter(([, value]) => value !== null && value !== undefined)
+                    .map((x, i) => `${key}[${i}]=${x}`).join('&') : `${key}=${value}`
             )
             .join('&');
 
