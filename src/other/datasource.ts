@@ -17,6 +17,7 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
     private _fixedFilter: Observable<DatasourceFilter<TInput, TOutput>>;
     private _filter: Observable<DatasourceFilter<TInput, TOutput>>;
     private _sort: Observable<Sort<TOutput>>;
+    private _error?: (error: unknown) => void;
     private _appending: boolean;
     private _lock: boolean;
     private _clearOnLock: boolean;
@@ -119,11 +120,17 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
 
             copy.forEach((x) => x.resolve());
 
-        } catch (exception) {
+        } catch (error) {
             copy.forEach((x) => x.reject());
+
+            this._error?.(error);
         } finally {
             this._loading.next(false);
         }
+    }
+
+    public setError(callback: ((error: unknown) => void)) {
+        this._error = callback;
     }
 
     public setPage(page: number) {

@@ -1,12 +1,13 @@
-import {Dispatch, ISubscriber} from 'open-observable';
-import {Observable} from 'open-observable';
-import {RequestSourceProvider} from '../types/request-source-provider';
+import { Dispatch, ISubscriber } from 'open-observable';
+import { Observable } from 'open-observable';
+import { RequestSourceProvider } from '../types/request-source-provider';
 
 export class RequestSource<TInput, TOutput> {
     private readonly _provider: RequestSourceProvider<TInput, TOutput>;
     private _timeoutId: number;
 
     private _input: Observable<TInput>;
+    private _error?: (error: unknown) => void;
     private _output: Observable<TOutput | undefined>;
     private _loading: Observable<boolean>;
     private _lock: boolean;
@@ -52,6 +53,10 @@ export class RequestSource<TInput, TOutput> {
         this.clear();
     }
 
+    public setError(callback: (error: unknown) => void) {
+        this._error = callback;
+    }
+
     public setClearOnLock(clearOnLock: boolean) {
         this._clearOnLock = clearOnLock;
 
@@ -72,9 +77,13 @@ export class RequestSource<TInput, TOutput> {
 
     private async realRefresh() {
         try {
-            const result = await (this._provider(this._input.current()))
+            const input = this._input.current();
+
+            const result = await this._provider(input);
 
             this._output.next(result);
+        } catch (error) {
+            this._error?.(error);
         } finally {
             this._loading.next(false);
         }

@@ -1,9 +1,9 @@
-import axios, {Axios, AxiosRequestConfig, AxiosResponse} from 'axios';
+import axios, { Axios, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-import {HttpConfig} from '../types/http-config';
-import {HttpDataType} from '../types/http-data-type';
-import {HttpRequestOptions} from '../types/http-request-options';
-import {RequestBuilder} from '../types/request-builder';
+import { HttpConfig } from '../types/http-config';
+import { HttpDataType } from '../types/http-data-type';
+import { HttpRequestOptions } from '../types/http-request-options';
+import { RequestBuilder } from '../types/request-builder';
 
 export class Http<Response, SuccessData, ErrorData> {
     private readonly _axios: Axios;
@@ -86,6 +86,8 @@ export class Http<Response, SuccessData, ErrorData> {
 
         if (dataType === 'JSON') return JSON.stringify(input);
 
+        if (dataType === 'RAW') return input;
+
         return undefined;
     }
 
@@ -105,8 +107,12 @@ export class Http<Response, SuccessData, ErrorData> {
         const compiled = entries
             .filter(([, value]) => value !== null && value !== undefined)
             .map(([key, value]) =>
-                Array.isArray(value) ? value.filter(([, value]) => value !== null && value !== undefined)
-                    .map((x, i) => `${key}[${i}]=${x}`).join('&') : `${key}=${value}`
+                Array.isArray(value)
+                    ? value
+                          .filter(([, value]) => value !== null && value !== undefined)
+                          .map((x, i) => `${key}[${i}]=${x}`)
+                          .join('&')
+                    : `${key}=${value}`
             )
             .join('&');
 
@@ -128,7 +134,7 @@ export class Http<Response, SuccessData, ErrorData> {
             ...options,
             headers: {
                 'Content-Type': dataType === 'FORMDATA' ? 'multipart/form-data' : 'application/json',
-                ...options?.headers
+                ...options?.headers,
             },
         };
     }
