@@ -1,11 +1,11 @@
 import {ISubscriber} from 'open-observable';
-import {DatasourceInput} from '../types/datasource-input';
+import {IDatasourceInput} from '../types/i-datasource-input';
 import {DatasourceOutput} from '../types/datasource-output';
 import {DatasourceProvider} from '../types/datasource-provider';
 
 type Source<TOutput> = TOutput[] | ISubscriber<TOutput[]>;
 
-export class InMemoryDatasourceProvider<TInput extends DatasourceInput<TOutput>, TOutput> {
+export class InMemoryDatasourceProvider<TInput extends IDatasourceInput<TOutput>, TOutput> {
     private readonly _source: Source<TOutput>;
 
     constructor(source: Source<TOutput>) {

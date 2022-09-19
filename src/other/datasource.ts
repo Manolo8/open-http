@@ -1,22 +1,24 @@
-import {Dispatch, ISubscriber, Observable} from 'open-observable';
-import {Pagination} from '../types/pagination';
-import {DatasourceInput} from '../types/datasource-input';
-import {DatasourceProvider} from '../types/datasource-provider';
-import {DatasourceFilter} from '../types/datasource-filter';
-import {Sort} from '../types/sort';
+import { Dispatch, ISubscriber, Observable } from 'open-observable';
+import { DatasourceFilter } from '../types/datasource-filter';
+import { DatasourceProvider } from '../types/datasource-provider';
+import { IDatasource } from '../types/i-datasource';
+import { IDatasourceInput } from '../types/i-datasource-input';
+import { IFilterPriority } from '../types/i-filter-priority';
+import { Pagination } from '../types/pagination';
+import { Sort } from '../types/sort';
 
-export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
+export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> implements IDatasource<TInput, TOutput> {
     private readonly _provider: DatasourceProvider<TInput, TOutput>;
     private _timeoutId: number;
+    private _controller?: AbortController;
 
-    private _items: Observable<TOutput[]>;
-    private _loading: Observable<boolean>;
-    private _total: Observable<number>;
-    private _raw: Observable<any>;
-    private _pagination: Observable<Pagination>;
-    private _fixedFilter: Observable<DatasourceFilter<TInput, TOutput>>;
-    private _filter: Observable<DatasourceFilter<TInput, TOutput>>;
-    private _sort: Observable<Sort<TOutput>>;
+    private readonly _items: Observable<TOutput[]>;
+    private readonly _loading: Observable<boolean>;
+    private readonly _total: Observable<number>;
+    private readonly _raw: Observable<any>;
+    private readonly _pagination: Observable<Pagination>;
+    private readonly _filter: Record<IFilterPriority, Observable<DatasourceFilter<TInput, TOutput>>>;
+    private readonly _sort: Observable<Sort<TOutput>>;
     private _error?: (error: unknown) => void;
     private _appending: boolean;
     private _lock: boolean;
@@ -34,84 +36,42 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
         this._total = new Observable<number>(0);
         this._raw = new Observable<TOutput | undefined>(undefined);
         this._loading = new Observable<boolean>(false);
-        this._pagination = new Observable<Pagination>({page: 1, size: 10});
-        this._fixedFilter = new Observable<DatasourceFilter<TInput, TOutput>>({});
-        this._filter = new Observable<DatasourceFilter<TInput, TOutput>>({});
+        this._pagination = new Observable<Pagination>({ page: 1, size: 10 });
+        this._filter = {
+            LOW: new Observable<DatasourceFilter<TInput, TOutput>>({}),
+            MEDIUM: new Observable<DatasourceFilter<TInput, TOutput>>({}),
+            HIGH: new Observable<DatasourceFilter<TInput, TOutput>>({}),
+        };
         this._sort = new Observable<Sort<TOutput>>([]);
         this._resolve = [];
 
         this.refresh = this.refresh.bind(this);
         this.append = this.append.bind(this);
-        this.realRefresh = this.realRefresh.bind(this);
+        this.internalRefresh = this.internalRefresh.bind(this);
         this.setPage = this.setPage.bind(this);
         this.setSize = this.setSize.bind(this);
-        this.setFixedFilter = this.setFixedFilter.bind(this);
         this.setFilter = this.setFilter.bind(this);
         this.setSort = this.setSort.bind(this);
         this.refreshDone = this.refreshDone.bind(this);
         this.setLock = this.setLock.bind(this);
         this.setClearOnLock = this.setClearOnLock.bind(this);
-        this.clear = this.clear.bind(this);
+        this.internalClear = this.internalClear.bind(this);
     }
 
-    public refresh(): void {
-        if (this._lock) return;
-
-        clearTimeout(this._timeoutId);
-
-        this._appending = false;
-        this._loading.next(true);
-
-        this._timeoutId = setTimeout(this.realRefresh, 250);
-    }
-
-    public append(): void {
-        if (this._lock) return;
-
-        if (this._loading.current()) return;
-
-        const {size, page} = this._pagination.current();
-        const total = this._total.current();
-
-        if (size * page >= total) return;
-
-        clearTimeout(this._timeoutId);
-
-        this._appending = true;
-        this._loading.next(true);
-
-        this._timeoutId = setTimeout(this.realRefresh, 250);
-    }
-
-    public refreshDone(): Promise<void> {
-        return new Promise((resolve, reject) => this._resolve.push({resolve, reject}));
-    }
-
-    public buildInput(): TInput {
-        const filter = {
-            ...this._filter.current(),
-            ...this._fixedFilter.current(),
-        } as Omit<TInput, keyof Pagination | 'sort'>;
-
-        const pagination = this._pagination.current();
-
-        const sort = this._sort.current();
-
-        return {...filter, ...pagination, sort} as TInput;
-    }
-
-    private async realRefresh() {
+    private async internalRefresh() {
         const appending = this._appending;
 
-        if (appending) this._pagination.next((old) => ({...old, page: old.page + 1}));
+        if (appending) this._pagination.next((old) => ({ ...old, page: old.page + 1 }));
 
         const input = this.buildInput();
 
         const copy = this._resolve;
         this._resolve = [];
 
+        const controller = (this._controller = new AbortController());
+
         try {
-            const result = await this._provider(input);
+            const result = await this._provider(input, { signal: this._controller.signal });
 
             this._raw.next(result);
             this._items.next((old) => (appending ? [...old, ...result.items] : result.items));
@@ -119,8 +79,10 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
             this._loading.next(false);
 
             copy.forEach((x) => x.resolve());
-
         } catch (error) {
+            //Ignore if request is cancelled
+            if (controller.signal.aborted) return;
+
             copy.forEach((x) => x.reject());
 
             this._error?.(error);
@@ -129,56 +91,82 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
         }
     }
 
-    public setError(callback: ((error: unknown) => void)) {
-        this._error = callback;
-    }
-
-    public setPage(page: number) {
-        this._pagination.next((old) => ({...old, page}));
-        this.refresh();
-    }
-
-    public setSize(size: number) {
-        this._pagination.next((old) => ({...old, size}));
-        this.refresh();
-    }
-
-    public setLock(lock: boolean) {
-        this._lock = lock;
-
-        if (!this._lock) return;
-
+    private internalCancelIncomingRequests(): void {
         clearTimeout(this._timeoutId);
-
-        if (!this._clearOnLock) return;
-
-        this.clear();
+        this._controller?.abort();
     }
 
-    public setClearOnLock(clearOnLock: boolean) {
-        this._clearOnLock = clearOnLock;
-
-        if (!(this._clearOnLock && this._lock)) return;
-
-        this.clear();
-    }
-
-    private clear() {
+    private internalClear(): void {
         this._raw.next(undefined);
         this._items.next([]);
         this._total.next(0);
         this._loading.next(false);
     }
 
-    public setFixedFilter(value: Dispatch<DatasourceFilter<TInput, TOutput>>): void {
-        this._fixedFilter.next(value);
-        this.refresh();
-        this.setPage(1);
+    public destroy(): void {
+        this.internalCancelIncomingRequests();
+        this.internalClear();
     }
 
-    public setFilter(value: Dispatch<DatasourceFilter<TInput, TOutput>>): void {
-        this._filter.next(value);
-        this.setPage(1);
+    public refresh(): void {
+        if (this._lock) return;
+
+        this.internalCancelIncomingRequests();
+
+        this._appending = false;
+        this._loading.next(true);
+
+        this._timeoutId = setTimeout(this.internalRefresh, 250);
+    }
+
+    public refreshDone(): Promise<void> {
+        return new Promise((resolve, reject) => this._resolve.push({ resolve, reject }));
+    }
+
+    public append(): boolean {
+        if (this._lock) return false;
+        if (this._loading.current()) return false;
+
+        const { size, page } = this._pagination.current();
+        const total = this._total.current();
+
+        if (size * page >= total) return false;
+
+        this.internalCancelIncomingRequests();
+
+        this._controller?.abort();
+        this._appending = true;
+        this._loading.next(true);
+        this._timeoutId = setTimeout(this.internalRefresh, 250);
+
+        return true;
+    }
+
+    public buildInput(): TInput {
+        const low = this._filter.LOW.current();
+        const medium = this._filter.MEDIUM.current();
+        const high = this._filter.HIGH.current();
+
+        const pagination = this._pagination.current();
+        const sort = this._sort.current();
+
+        const filter = { ...low, ...medium, ...high };
+
+        return { ...filter, ...pagination, sort } as TInput;
+    }
+
+    public setError(callback: (error: unknown) => void): void {
+        this._error = callback;
+    }
+
+    public setPage(page: number): void {
+        this._pagination.next((old) => ({ ...old, page }));
+        this.refresh();
+    }
+
+    public setSize(size: number): void {
+        this._pagination.next((old) => ({ ...old, size }));
+        this.refresh();
     }
 
     public setSort(value: Dispatch<Sort<TOutput>>): void {
@@ -186,36 +174,59 @@ export class Datasource<TInput extends DatasourceInput<TOutput>, TOutput> {
         this.setPage(1);
     }
 
+    public setLock(lock: boolean): void {
+        this._lock = lock;
+        if (!this._lock) return;
+
+        this.internalCancelIncomingRequests();
+
+        if (!this._clearOnLock) return;
+
+        this.internalClear();
+    }
+
+    public setClearOnLock(clearOnLock: boolean): void {
+        this._clearOnLock = clearOnLock;
+
+        if (!(this._clearOnLock && this._lock)) return;
+
+        this.internalClear();
+    }
+
+    public setFilter(
+        value: Dispatch<Partial<Omit<TInput, 'size' | 'page' | 'sort'>>>,
+        priority?: IFilterPriority
+    ): void {
+        this._filter[priority ?? 'LOW'].next(value);
+        this.setPage(1);
+    }
+
     public get items(): ISubscriber<TOutput[]> {
-        return this._items.asSubscriber();
+        return this._items;
     }
 
     public get total(): ISubscriber<number> {
-        return this._total.asSubscriber();
+        return this._total;
     }
 
     public get pagination(): ISubscriber<Pagination> {
-        return this._pagination.asSubscriber();
-    }
-
-    public get fixedFilter(): ISubscriber<DatasourceFilter<TInput, TOutput>> {
-        return this._fixedFilter.asSubscriber();
-    }
-
-    public get filter(): ISubscriber<DatasourceFilter<TInput, TOutput>> {
-        return this._filter.asSubscriber();
-    }
-
-    public get loading(): ISubscriber<boolean> {
-        return this._loading.asSubscriber();
-    }
-
-    public get raw(): ISubscriber<any> {
-        return this._raw.asSubscriber();
+        return this._pagination;
     }
 
     public get sort(): ISubscriber<Sort<TOutput>> {
-        return this._sort.asSubscriber();
+        return this._sort;
+    }
+
+    public get filter(): Record<IFilterPriority, ISubscriber<Partial<Omit<TInput, 'size' | 'page' | 'sort'>>>> {
+        return this._filter;
+    }
+
+    public get loading(): ISubscriber<boolean> {
+        return this._loading;
+    }
+
+    public get raw(): ISubscriber<any> {
+        return this._raw;
     }
 
     public get lock(): boolean {

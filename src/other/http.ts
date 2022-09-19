@@ -16,7 +16,7 @@ export class Http<Response, SuccessData, ErrorData> {
 
     public get<TInput, TOutput>(url: string): RequestBuilder<TInput, TOutput> {
         return (input: TInput, options?: HttpRequestOptions) =>
-            this.processPromise(input, this._axios.get<TOutput>(url + Http.compileParameters(input), options ?? {}));
+            this.processPromise(input, this._axios.get<TOutput>(Http.buildUrl(url, input), options ?? {}));
     }
 
     public post<TInput, TOutput>(url: string, dataType?: HttpDataType): RequestBuilder<TInput, TOutput> {
@@ -92,6 +92,16 @@ export class Http<Response, SuccessData, ErrorData> {
     }
 
     private static buildUrl(url: string, input: any, dataType?: HttpDataType): string {
+        const indexOfTwoSlashes = url.indexOf('//');
+
+        const indexOfTwoDots = url.indexOf(':', indexOfTwoSlashes);
+
+        if (indexOfTwoDots !== -1 && input && typeof input === 'object') {
+            url =
+                url.substring(0, indexOfTwoSlashes) +
+                url.substring(indexOfTwoSlashes).replace(/(:[^/]+)/g, (x) => input[x.substring(1)]);
+        }
+
         if (!dataType) {
             return url + Http.compileParameters(input);
         }
