@@ -1,6 +1,7 @@
 {
     "name": "open-http",
-    "version": "1.2.1",
+    "sideEffects": "false",
+    "version": "1.2.3",
     "description": "",
     "main": "./build/index.js",
     "types": "./build/index.d.ts",
@@ -24,12 +25,12 @@
         "@babel/preset-typescript": "^7.16.0",
         "@testing-library/react": "^13.2.0",
         "@types/jest": "^27.0.3",
+        "@types/qs": "^6.9.7",
         "@types/react": "^17.0.0",
         "@typescript-eslint/eslint-plugin": "^5.5.0",
         "@typescript-eslint/parser": "^5.5.0",
         "babel-jest": "^27.4.2",
         "eslint": "^8.3.0",
-        "eslint-config-react-app": "^6.0.0",
         "eslint-plugin-react": "^7.27.1",
         "eslint-plugin-react-hooks": "^4.3.0",
         "jest": "^27.4.3",
@@ -39,6 +40,7 @@
     "author": "Manolo8",
     "license": "MIT",
     "dependencies": {
-        "axios": "^0.24.0"
+        "axios": "^0.24.0",
+        "qs": "^6.11.0"
     }
 }

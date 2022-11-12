@@ -4,6 +4,7 @@ import { HttpConfig } from '../types/http-config';
 import { HttpDataType } from '../types/http-data-type';
 import { HttpRequestOptions } from '../types/http-request-options';
 import { RequestBuilder } from '../types/request-builder';
+import qs from 'qs';
 
 export class Http<Response, SuccessData, ErrorData> {
     private readonly _axios: Axios;
@@ -112,21 +113,9 @@ export class Http<Response, SuccessData, ErrorData> {
     private static compileParameters(parameters: any) {
         if (!parameters) return '';
 
-        const entries = Object.entries(parameters);
-
-        const compiled = entries
-            .filter(([, value]) => value !== null && value !== undefined)
-            .map(([key, value]) =>
-                Array.isArray(value)
-                    ? value
-                          .filter(([, value]) => value !== null && value !== undefined)
-                          .map((x, i) => `${key}[${i}]=${x}`)
-                          .join('&')
-                    : `${key}=${value}`
-            )
-            .join('&');
-
-        return compiled ? '?' + compiled : '';
+        const qsValue = qs.stringify(parameters);
+        
+        return qsValue ? '?' + qsValue : '';
     }
 
     private buildFormData(input: any) {
