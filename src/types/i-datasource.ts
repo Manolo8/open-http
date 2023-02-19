@@ -74,6 +74,15 @@ export interface IDatasource<TInput extends IDatasourceInput<TOutput>, TOutput> 
     setFilter(value: Dispatch<DatasourceFilter<TInput, TOutput>>, priority?: IFilterPriority): void;
 
     /**
+     *  Try to get all items of this datasource from the server
+     *  This function doesn't change the datasource
+     *  @param size default 1_000_000
+     *  @param page default 1
+     *  @return TOutput[]
+     */
+    allItems(size?: number, page?: number): Promise<TOutput[]>
+
+    /**
      * Return a subscriber of the datasource's items
      */
     get items(): ISubscriber<TOutput[]>;

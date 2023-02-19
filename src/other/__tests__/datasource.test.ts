@@ -1,3 +1,4 @@
+import qs from "qs";
 import { Datasource } from '../datasource';
 import { InMemoryDatasourceProvider } from '../in-memory-datasource-provider';
 
