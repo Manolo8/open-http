@@ -1,5 +1,5 @@
 import { Configurator, IConfigurator } from 'open-observable';
-import { useEffect, useState } from 'react';
+import {useEffect, useMemo, useState} from 'react';
 
 import { RequestSource } from '../other/request-source';
 import { IRequestSource } from '../types/i-request-source';
@@ -9,11 +9,11 @@ export const useRequest = <TInput, TOutput>(
     provider: RequestSourceProvider<TInput, TOutput>,
     configure?: (source: IConfigurator<RequestSource<TInput, TOutput>>) => void
 ): IRequestSource<TInput, TOutput> => {
-    const [{ source, configurator }] = useState(() => {
+    const { source, configurator } = useMemo(() => {
         const source = new RequestSource<TInput, TOutput>(provider);
         const configurator = new Configurator(source);
         return { source, configurator };
-    });
+    }, [provider]);
 
     useEffect(() => {
         configure?.(configurator);
