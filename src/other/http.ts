@@ -4,6 +4,7 @@ import { HttpConfig } from '../types/http-config';
 import { HttpDataType } from '../types/http-data-type';
 import { HttpRequestOptions } from '../types/http-request-options';
 import { RequestBuilder } from '../types/request-builder';
+import objectToFormData from '../utils/object-to-form-data';
 import qs from 'qs';
 
 export class Http<Response, SuccessData, ErrorData> {
@@ -83,7 +84,7 @@ export class Http<Response, SuccessData, ErrorData> {
     }
 
     private buildInput(input: any, dataType?: HttpDataType) {
-        if (dataType === 'FORMDATA') return this.buildFormData(input);
+        if (dataType === 'FORMDATA') return objectToFormData(input);
 
         if (dataType === 'JSON') return JSON.stringify(input);
 
@@ -114,7 +115,7 @@ export class Http<Response, SuccessData, ErrorData> {
         if (!parameters) return '';
 
         const qsValue = qs.stringify(parameters);
-        
+
         return qsValue ? '?' + qsValue : '';
     }
 
