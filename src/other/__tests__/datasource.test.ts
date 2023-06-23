@@ -1,4 +1,3 @@
-import qs from "qs";
 import { Datasource } from '../datasource';
 import { InMemoryDatasourceProvider } from '../in-memory-datasource-provider';
 
@@ -19,7 +18,6 @@ function createDatasource() {
     return new Datasource(provider);
 }
 
-
 it('should bring correctly result', async () => {
     const datasource = createDatasource();
 
@@ -37,7 +35,6 @@ it('should bring correctly result', async () => {
     expect(items[3].id).toBe(4);
 });
 
-
 it('should sort correctly number asc', async () => {
     const datasource = createDatasource();
 
@@ -52,7 +49,6 @@ it('should sort correctly number asc', async () => {
     expect(items[0].id).toBe(1);
     expect(items[1].id).toBe(2);
     expect(items[2].id).toBe(3);
-
 });
 
 it('should sort correctly number desc', async () => {
@@ -69,7 +65,6 @@ it('should sort correctly number desc', async () => {
     expect(items[0].id).toBe(8);
     expect(items[1].id).toBe(7);
     expect(items[2].id).toBe(6);
-
 });
 
 it('shoult sort correclty string asc', async () => {
@@ -106,7 +101,7 @@ it('should sort correctly desc asc', async () => {
 
 it('should sort correclty boolean asc', async () => {
     const datasource = createDatasource();
-    
+
     datasource.setSort([['male', 'ASC']]);
 
     datasource.refresh();
@@ -125,7 +120,7 @@ it('should sort correclty boolean asc', async () => {
 
 it('shoult sort correctly boolean desc', async () => {
     const datasource = createDatasource();
-    
+
     datasource.setSort([['male', 'DESC']]);
 
     datasource.refresh();

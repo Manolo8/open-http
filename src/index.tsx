@@ -11,7 +11,6 @@ export { IRequestSource } from './types/i-request-source';
 export { IFilterPriority } from './types/i-filter-priority';
 
 export { Datasource } from './other/datasource';
-export { Http } from './other/http';
 export { InMemoryDatasourceProvider } from './other/in-memory-datasource-provider';
 export { RequestSource } from './other/request-source';
 export { RequestBuilder } from './types/request-builder';

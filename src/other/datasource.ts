@@ -1,11 +1,11 @@
-import {Dispatch, ISubscriber, Observable} from 'open-observable';
-import {DatasourceFilter} from '../types/datasource-filter';
-import {DatasourceProvider} from '../types/datasource-provider';
-import {IDatasource} from '../types/i-datasource';
-import {IDatasourceInput} from '../types/i-datasource-input';
-import {IFilterPriority} from '../types/i-filter-priority';
-import {Pagination} from '../types/pagination';
-import {Sort} from '../types/sort';
+import { Dispatch, ISubscriber, Observable } from 'open-observable';
+import { DatasourceFilter } from '../types/datasource-filter';
+import { DatasourceProvider } from '../types/datasource-provider';
+import { IDatasource } from '../types/i-datasource';
+import { IDatasourceInput } from '../types/i-datasource-input';
+import { IFilterPriority } from '../types/i-filter-priority';
+import { Pagination } from '../types/pagination';
+import { Sort } from '../types/sort';
 
 export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> implements IDatasource<TInput, TOutput> {
     private readonly _provider: DatasourceProvider<TInput, TOutput>;
@@ -36,7 +36,7 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         this._total = new Observable<number>(0);
         this._raw = new Observable<TOutput | undefined>(undefined);
         this._loading = new Observable<boolean>(false);
-        this._pagination = new Observable<Pagination>({page: 1, size: 10});
+        this._pagination = new Observable<Pagination>({ page: 1, size: 10 });
         this._filter = {
             LOW: new Observable<DatasourceFilter<TInput, TOutput>>({}),
             MEDIUM: new Observable<DatasourceFilter<TInput, TOutput>>({}),
@@ -61,7 +61,7 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     private async internalRefresh() {
         const appending = this._appending;
 
-        if (appending) this._pagination.next((old) => ({...old, page: old.page + 1}));
+        if (appending) this._pagination.next((old) => ({ ...old, page: old.page + 1 }));
 
         const input = this.buildInput();
 
@@ -71,7 +71,7 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         const controller = (this._controller = new AbortController());
 
         try {
-            const result = await this._provider(input, {signal: this._controller.signal});
+            const result = await this._provider(input, { signal: this._controller.signal });
 
             this._raw.next(result);
             this._items.next((old) => (appending ? [...old, ...result.items] : result.items));
@@ -120,14 +120,14 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     }
 
     public refreshDone(): Promise<void> {
-        return new Promise((resolve, reject) => this._resolve.push({resolve, reject}));
+        return new Promise((resolve, reject) => this._resolve.push({ resolve, reject }));
     }
 
     public append(): boolean {
         if (this._lock) return false;
         if (this._loading.current()) return false;
 
-        const {size, page} = this._pagination.current();
+        const { size, page } = this._pagination.current();
         const total = this._total.current();
 
         if (size * page >= total) return false;
@@ -150,9 +150,9 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         const pagination = this._pagination.current();
         const sort = this._sort.current();
 
-        const filter = {...low, ...medium, ...high};
+        const filter = { ...low, ...medium, ...high };
 
-        return {...filter, ...pagination, sort} as TInput;
+        return { ...filter, ...pagination, sort } as TInput;
     }
 
     public setError(callback: (error: unknown) => void): void {
@@ -160,12 +160,12 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     }
 
     public setPage(page: number): void {
-        this._pagination.next((old) => ({...old, page}));
+        this._pagination.next((old) => ({ ...old, page }));
         this.refresh();
     }
 
     public setSize(size: number): void {
-        this._pagination.next((old) => ({...old, size}));
+        this._pagination.next((old) => ({ ...old, size }));
         this.refresh();
     }
 
@@ -175,8 +175,15 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     }
 
     public setLock(lock: boolean): void {
+        if (this._lock === lock) return;
+
         this._lock = lock;
-        if (!this._lock) return;
+
+        if (!this._lock) {
+            this.refresh();
+
+            return;
+        }
 
         this.internalCancelIncomingRequests();
 
@@ -202,7 +209,7 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     }
 
     public async allItems(size?: number, page?: number): Promise<TOutput[]> {
-        const input = {...this.buildInput(), page: page ?? 1, size: size ?? 1_000_000};
+        const input = { ...this.buildInput(), page: page ?? 1, size: size ?? 1_000_000 };
 
         const result = await this._provider(input);
 

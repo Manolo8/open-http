@@ -78,9 +78,15 @@ export class RequestSource<TInput, TOutput> implements IRequestSource<TInput, TO
     }
 
     public setLock(lock: boolean): void {
+        if (this._lock === lock) return;
+
         this._lock = lock;
 
-        if (!this._lock) return;
+        if (!this._lock) {
+            this.refresh();
+
+            return;
+        }
 
         clearTimeout(this._timeoutId);
         this._controller?.abort();

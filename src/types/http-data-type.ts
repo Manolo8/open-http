@@ -1,1 +1,0 @@
-export type HttpDataType = 'JSON' | 'FORMDATA' | 'RAW';

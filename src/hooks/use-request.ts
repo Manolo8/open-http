@@ -1,5 +1,5 @@
 import { Configurator, IConfigurator } from 'open-observable';
-import {useEffect, useMemo, useState} from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { RequestSource } from '../other/request-source';
 import { IRequestSource } from '../types/i-request-source';
