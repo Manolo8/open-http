@@ -19,18 +19,21 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     private readonly _pagination: Observable<Pagination>;
     private readonly _filter: Record<IFilterPriority, Observable<DatasourceFilter<TInput, TOutput>>>;
     private readonly _sort: Observable<Sort<TOutput>>;
+    private _timeout = 250;
     private _error?: (error: unknown) => void;
     private _appending: boolean;
     private _lock: boolean;
     private _clearOnLock: boolean;
+    private _destroyed: boolean;
 
-    private _resolve: { resolve: () => void; reject: () => void }[];
+    private _resolve: { resolve: () => void; reject: (reason?: unknown) => void }[];
 
     constructor(provider: DatasourceProvider<TInput, TOutput>) {
         this._provider = provider;
         this._appending = false;
         this._lock = false;
         this._clearOnLock = false;
+        this._destroyed = false;
         this._timeoutId = 0;
         this._items = new Observable<TOutput[]>([]);
         this._total = new Observable<number>(0);
@@ -55,13 +58,25 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         this.refreshDone = this.refreshDone.bind(this);
         this.setLock = this.setLock.bind(this);
         this.setClearOnLock = this.setClearOnLock.bind(this);
+        this.setTimeout = this.setTimeout.bind(this);
         this.internalClear = this.internalClear.bind(this);
+        this.destroy = this.destroy.bind(this);
     }
 
     private async internalRefresh() {
         const appending = this._appending;
 
-        if (appending) this._pagination.next((old) => ({ ...old, page: old.page + 1 }));
+        const previousPage = this._pagination.current().page;
+        const appendedPage = previousPage + 1;
+
+        if (appending) this._pagination.next((old) => ({ ...old, page: appendedPage }));
+
+        //Undo the page increment made by this call, but only if nothing else changed it meanwhile
+        const rollbackAppend = () => {
+            if (!appending) return;
+
+            this._pagination.next((old) => (old.page === appendedPage ? { ...old, page: previousPage } : old));
+        };
 
         const input = this.buildInput();
 
@@ -70,24 +85,50 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
 
         const controller = (this._controller = new AbortController());
 
+        //An aborted request never settles its own callers, hand them over to the request that superseded it
+        const handleAborted = () => {
+            rollbackAppend();
+
+            if (this._destroyed) {
+                copy.forEach((x) => x.reject(new Error('Datasource destroyed')));
+
+                return;
+            }
+
+            this._resolve = [...copy, ...this._resolve];
+        };
+
         try {
-            const result = await this._provider(input, { signal: this._controller.signal });
+            const result = await this._provider(input, { signal: controller.signal });
+
+            //The provider may ignore the signal, so a stale result must never overwrite newer data
+            if (controller.signal.aborted) {
+                handleAborted();
+
+                return;
+            }
 
             this._raw.next(result);
             this._items.next((old) => (appending ? [...old, ...result.items] : result.items));
             this._total.next(result.total);
-            this._loading.next(false);
 
             copy.forEach((x) => x.resolve());
         } catch (error) {
             //Ignore if request is cancelled
-            if (controller.signal.aborted) return;
+            if (controller.signal.aborted) {
+                handleAborted();
 
-            copy.forEach((x) => x.reject());
+                return;
+            }
+
+            rollbackAppend();
+
+            copy.forEach((x) => x.reject(error));
 
             this._error?.(error);
         } finally {
-            this._loading.next(false);
+            //A newer request may already have set loading to true, only the current one may clear it
+            if (this._controller === controller) this._loading.next(false);
         }
     }
 
@@ -104,8 +145,15 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
     }
 
     public destroy(): void {
+        this._destroyed = true;
+
         this.internalCancelIncomingRequests();
         this.internalClear();
+
+        const copy = this._resolve;
+        this._resolve = [];
+
+        copy.forEach((x) => x.reject(new Error('Datasource destroyed')));
     }
 
     public refresh(): void {
@@ -116,7 +164,7 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         this._appending = false;
         this._loading.next(true);
 
-        this._timeoutId = setTimeout(this.internalRefresh, 250);
+        this._timeoutId = setTimeout(this.internalRefresh, this._timeout);
     }
 
     public refreshDone(): Promise<void> {
@@ -134,10 +182,9 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
 
         this.internalCancelIncomingRequests();
 
-        this._controller?.abort();
         this._appending = true;
         this._loading.next(true);
-        this._timeoutId = setTimeout(this.internalRefresh, 250);
+        this._timeoutId = setTimeout(this.internalRefresh, this._timeout);
 
         return true;
     }
@@ -198,6 +245,10 @@ export class Datasource<TInput extends IDatasourceInput<TOutput>, TOutput> imple
         if (!(this._clearOnLock && this._lock)) return;
 
         this.internalClear();
+    }
+
+    public setTimeout(timeout: number): void {
+        this._timeout = timeout;
     }
 
     public setFilter(

@@ -55,6 +55,24 @@ it('should sort 4 items DESC', async () => {
     expect(result.items[3].userName).toBe('Elfo');
 });
 
+it('should sort numbers DESC', async () => {
+    const result = await provider({ page: 1, size: 8, sort: [['id', 'DESC']] });
+
+    expect(result.items.map((x) => x.id)).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+});
+
+it('should clamp invalid pagination input', async () => {
+    const result = await provider({ page: 0, size: 4, sort: [] });
+
+    expect(result.items.length).toBe(4);
+    expect(result.items[0].id).toBe(1);
+
+    const negativeSize = await provider({ page: 1, size: -4, sort: [] });
+
+    expect(negativeSize.items.length).toBe(0);
+    expect(negativeSize.total).toBe(8);
+});
+
 it('should bring 4 items', async () => {
     const result = await provider({ page: 1, size: 4, sort: [] });
 

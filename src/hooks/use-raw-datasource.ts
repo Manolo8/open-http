@@ -1,5 +1,5 @@
 import { Configurator, IConfigurator } from 'open-observable';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Datasource } from '../other/datasource';
 import { DatasourceProvider } from '../types/datasource-provider';
 import { IDatasource } from '../types/i-datasource';
@@ -15,15 +15,23 @@ export const useRawDatasource = <TInput extends IDatasourceInput<TOutput>, TOutp
         return { datasource, configurator };
     }, [provider]);
 
+    // Holds the latest `configure` without making it an effect dependency, so an inline
+    // arrow function does not retrigger reset/reconfigure/refresh on every render.
+    const configureRef = useRef(configure);
+    configureRef.current = configure;
+
     useEffect(() => {
-        configure?.(configurator);
+        configureRef.current?.(configurator);
 
-        if (configurator.isCalled() || !configure) datasource.refresh();
+        datasource.refresh();
 
-        return () => configurator.reset();
-    }, [configurator, configure, datasource]);
-
-    useEffect(() => () => datasource.destroy(), [datasource]);
+        // Runs on unmount and whenever `provider` yields a new instance, so the replaced
+        // datasource is always aborted and cleared instead of being abandoned.
+        return () => {
+            configurator.reset();
+            datasource.destroy();
+        };
+    }, [configurator, datasource]);
 
     return datasource;
 };

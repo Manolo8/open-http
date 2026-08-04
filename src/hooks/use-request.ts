@@ -1,5 +1,5 @@
 import { Configurator, IConfigurator } from 'open-observable';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { RequestSource } from '../other/request-source';
 import { IRequestSource } from '../types/i-request-source';
@@ -15,15 +15,23 @@ export const useRequest = <TInput, TOutput>(
         return { source, configurator };
     }, [provider]);
 
+    // Holds the latest `configure` without making it an effect dependency, so an inline
+    // arrow function does not retrigger reset/reconfigure/refresh on every render.
+    const configureRef = useRef(configure);
+    configureRef.current = configure;
+
     useEffect(() => {
-        configure?.(configurator);
+        configureRef.current?.(configurator);
 
-        if (configurator.isCalled() || !configure) source.refresh();
+        source.refresh();
 
-        return () => configurator.reset();
-    }, [configurator, configure, source]);
-
-    useEffect(() => source.destroy, [source]);
+        // Runs on unmount and whenever `provider` yields a new instance, so the replaced
+        // source is always aborted and cleared instead of being abandoned.
+        return () => {
+            configurator.reset();
+            source.destroy();
+        };
+    }, [configurator, source]);
 
     return source;
 };

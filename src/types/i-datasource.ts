@@ -67,6 +67,12 @@ export interface IDatasource<TInput extends IDatasourceInput<TOutput>, TOutput> 
     setClearOnLock(clearOnLock: boolean): void;
 
     /**
+     * Set the timeout before the datasource is refreshed
+     * @param timeout
+     */
+    setTimeout(timeout: number): void;
+
+    /**
      * Set datasource filter
      * @param value
      * @param priority

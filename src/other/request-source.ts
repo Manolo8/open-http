@@ -40,13 +40,17 @@ export class RequestSource<TInput, TOutput> implements IRequestSource<TInput, TO
 
             const result = await this._provider(input, { signal: controller.signal });
 
+            //The provider may ignore the signal, so a stale result must never overwrite newer data
+            if (controller.signal.aborted) return;
+
             this._output.next(result);
         } catch (error) {
             if (controller.signal.aborted) return;
 
             this._error?.(error);
         } finally {
-            this._loading.next(false);
+            //A newer request may already have set loading to true, only the current one may clear it
+            if (this._controller === controller) this._loading.next(false);
         }
     }
 
@@ -88,8 +92,7 @@ export class RequestSource<TInput, TOutput> implements IRequestSource<TInput, TO
             return;
         }
 
-        clearTimeout(this._timeoutId);
-        this._controller?.abort();
+        this.internalCancelIncomingRequests();
 
         if (!this._clearOnLock) return;
 

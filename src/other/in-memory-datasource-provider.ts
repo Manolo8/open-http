@@ -35,7 +35,11 @@ export class InMemoryDatasourceProvider<TInput extends IDatasourceInput<TOutput>
         return {total, items};
     }
 
-    private applyFilter(input: TInput, value: TOutput[]): TOutput[] {
+    /**
+     * Extension point: subclasses may override this to filter the source before
+     * sorting/pagination is applied. The base implementation is a no-op.
+     */
+    protected applyFilter(input: TInput, value: TOutput[]): TOutput[] {
         return value;
     }
 
@@ -58,17 +62,16 @@ export class InMemoryDatasourceProvider<TInput extends IDatasourceInput<TOutput>
                 if (typeof valueA === 'string' && typeof valueB === 'string') {
                     value = valueA.localeCompare(valueB);
                 } else if (typeof valueA === 'number' && typeof valueB === 'number') {
-                    value = valueA - valueB;
-
-                    if (value > 0) value = 1;
-                    else if (value < 0) value = -1;
+                    // Comparisons (instead of subtraction) avoid overflow and keep NaN as "equal".
+                    value = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
                 } else if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
                     value = (+valueA) - (+valueB);
                 }
 
                 if (value === 0) continue;
 
-                return sorter[1] === 'ASC' ? value : value === 1 ? -1 : 1;
+                // localeCompare may return any negative/positive number, not only ±1.
+                return sorter[1] === 'ASC' ? value : -value;
             }
 
             return 0;
@@ -78,12 +81,11 @@ export class InMemoryDatasourceProvider<TInput extends IDatasourceInput<TOutput>
     }
 
     private applyPagination(input: TInput, value: TOutput[]): TOutput[] {
-        const page = input.page;
-        const size = input.size;
+        const page = Number.isFinite(input.page) && input.page > 1 ? Math.floor(input.page) : 1;
+        const size = Number.isFinite(input.size) && input.size > 0 ? Math.floor(input.size) : 0;
 
         const start = (page - 1) * size;
-        const end = Math.min(start + size, value.length);
 
-        return value.slice(start, end);
+        return value.slice(start, start + size);
     }
 }

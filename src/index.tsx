@@ -15,6 +15,8 @@ export { InMemoryDatasourceProvider } from './other/in-memory-datasource-provide
 export { RequestSource } from './other/request-source';
 export { RequestBuilder } from './types/request-builder';
 
+export { default as objectToFormData } from './utils/object-to-form-data';
+
 export { useRequest } from './hooks/use-request';
 export { useRawDatasource } from './hooks/use-raw-datasource';
 export { useInMemoryDatasourceProvider } from './hooks/use-in-memory-datasource-provider';
